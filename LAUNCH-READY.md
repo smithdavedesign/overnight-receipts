@@ -33,7 +33,7 @@ The go-live pass of 2026-10-13. The product does what it did before. The CLI is 
 - Set to anything but a `https://buy.stripe.com/…` link: the build fails without printing the value, and Vercel keeps the last good deploy.
 - Nothing is hard-coded. The static site never needs the value in the browser, so there's no `NEXT_PUBLIC_` copy.
 
-**4. Visit beacon** (`site/pages/beacon.js`). It POSTs `{"slug":"dawnlog","kind":…,"referrer":…}` to `https://repohq.vercel.app/api/ideas/signal`.
+**4. Visit beacon** (`site/pages/beacon.js`). It POSTs `{"slug":"dawnlog","kind":…,"referrer":…}` to `https://idea-factory.1426davejobs.workers.dev/api/ideas/signal`.
 - **How it's sent:** fire-and-forget `fetch`, with `keepalive`, `credentials: 'omit'` and `referrerPolicy: 'no-referrer'`. The CSP's `connect-src` allows that one origin and nothing else.
 - **`visit`:** on each public page, once per browser session (`sessionStorage`).
 - **`activate`:** the first time someone **copies the install command** (`npx github:smithdavedesign/overnight-receipts --since 12h`) from the landing page. Once per browser (`localStorage`). **This is the core action.** The product's real core action, running the CLI, happens on the user's machine. The CLI promises "no telemetry" and its tests assert it opens no socket, so it must not phone home. Copying the install line is the last step the website can see before someone runs it.
