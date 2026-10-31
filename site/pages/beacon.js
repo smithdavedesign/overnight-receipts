@@ -8,7 +8,7 @@
 // Nothing is sent to an automated browser (navigator.webdriver), off the production deploy (the build writes
 // VERCEL_ENV into <meta name="vercel-env">), or when localStorage has "repohq:notrack" (the owner's browser).
 // The privacy page describes exactly this; change both together.
-export const ENDPOINT = 'https://repohq.vercel.app/api/ideas/signal';
+export const ENDPOINT = 'https://idea-factory.1426davejobs.workers.dev/api/ideas/signal';
 export const SLUG = 'dawnlog';
 export const NOTRACK_KEY = 'repohq:notrack';
 export const VISIT_KEY = `repohq:visit:${SLUG}`;

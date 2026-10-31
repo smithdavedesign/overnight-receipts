@@ -286,7 +286,7 @@ describe('L4: the visit beacon', () => {
     const { win, sent } = fakeWindow();
     beacon.startBeacon(win);
     const [{ url, init, body }] = sent;
-    assert.equal(url, 'https://repohq.vercel.app/api/ideas/signal');
+    assert.equal(url, 'https://idea-factory.1426davejobs.workers.dev/api/ideas/signal');
     assert.equal(init.method, 'POST');
     assert.equal(init.headers['content-type'], 'application/json');
     assert.equal(init.keepalive, true);
@@ -377,7 +377,7 @@ describe('L5: privacy, terms and provisioning', () => {
   test('the privacy page names the beacon, its three events, what it sends and how to turn it off', () => {
     const page = words(build().html['privacy.html']);
     for (const event of ['visit', 'activate', 'checkout']) assert.match(page, new RegExp(`\\b${event}\\b`), event);
-    assert.match(page, /repohq\.vercel\.app/);
+    assert.match(page, /idea-factory\.1426davejobs\.workers\.dev/);
     assert.match(page, /no cookie/i);
     assert.match(page, /no identifier/i);
     assert.match(page, /IP address/);
