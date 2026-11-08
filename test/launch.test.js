@@ -4,7 +4,7 @@
 //   L2 robots.txt allows indexing and points at sitemap.xml, which lists the public pages
 //   L3 the share image is a valid 1200×630 PNG drawn by the build
 //   L4 the visit beacon: visit / activate / checkout, once where it should be, never to bots, previews or the owner
-//   L5 privacy and terms say what the launch changed; .provision asks for the Vercel project and the Payment Link
+//   L5 privacy and terms say what the launch changed; the Cloudflare Worker serves the same build as production
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +17,7 @@ after(cleanup);
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = ['index.html', 'terms.html', 'privacy.html'];
-const SITE = 'https://dawnlog.vercel.app';
+const SITE = 'https://overnight-receipts.1426davejobs.workers.dev';
 
 let site;
 let beacon;
@@ -232,7 +232,7 @@ function fakeWindow({ env = 'production', webdriver = false, referrer = '', loca
     document: {
       referrer,
       querySelector: (sel) => {
-        if (sel === 'meta[name="vercel-env"]') return env === null ? null : { getAttribute: (a) => (a === 'content' ? env : null) };
+        if (sel === 'meta[name="deploy-env"]') return env === null ? null : { getAttribute: (a) => (a === 'content' ? env : null) };
         if (sel === 'a#buy') return buy ? element('buy') : null;
         return null;
       },
@@ -308,7 +308,7 @@ describe('L4: the visit beacon', () => {
     assert.equal(beacon.externalReferrer('not a url', SITE), null);
     assert.equal(beacon.externalReferrer('android-app://com.example/', SITE), null);
     assert.equal(beacon.externalReferrer(`${SITE}/?q=1`, SITE), null);
-    assert.equal(beacon.externalReferrer('https://dawnlog.vercel.app.example/', SITE), 'https://dawnlog.vercel.app.example/', 'a look-alike host is another site');
+    assert.equal(beacon.externalReferrer(`${SITE}.example/`, SITE), `${SITE}.example/`, 'a look-alike host is another site');
   });
 
   test('sends nothing, and listens for nothing, to bots, previews, local builds, the opted-out owner, or without storage', () => {
@@ -348,21 +348,25 @@ describe('L4: the visit beacon', () => {
     assert.equal(beacon.firstTime(full, 'k'), false);
   });
 
-  test('the pages are wired: deploy env from VERCEL_ENV, the beacon on public pages only, the install line marked', () => {
+  test('the pages are wired: deploy env from NEXT_PUBLIC_DEPLOY_ENV or VERCEL_ENV, the beacon on public pages only, the install line marked', () => {
     const { html } = build({ VERCEL_ENV: 'production' });
     for (const file of PUBLIC) {
-      assert.equal(meta(html[file], 'name', 'vercel-env'), 'production', file);
+      assert.equal(meta(html[file], 'name', 'deploy-env'), 'production', file);
       assert.match(html[file], /<script type="module" src="beacon\.js"><\/script>/, file);
     }
     assert.ok(!html['thanks.html'].includes('beacon.js'), 'the page after paying sends nothing');
-    assert.equal(meta(html['thanks.html'], 'name', 'vercel-env'), undefined);
+    assert.equal(meta(html['thanks.html'], 'name', 'deploy-env'), undefined);
     const install = /<pre\b[^>]*\sdata-activate="install"[^>]*>([\s\S]*?)<\/pre>/.exec(html['index.html']);
     assert.ok(install, 'the install line carries data-activate');
     assert.equal(install[1].replace(/<[^>]+>/g, ''), site.INSTALL);
     assert.match(html['index.html'], /<p id="buy"/, 'checkout off: #buy is not a link, so no checkout event can fire');
     for (const [VERCEL_ENV, expected] of [['preview', 'preview'], ['development', 'development'], [undefined, 'local'], ['staging', 'local']]) {
-      assert.equal(meta(build({ VERCEL_ENV }).html['index.html'], 'name', 'vercel-env'), expected, String(VERCEL_ENV));
+      assert.equal(meta(build({ VERCEL_ENV }).html['index.html'], 'name', 'deploy-env'), expected, String(VERCEL_ENV));
     }
+    // The Cloudflare build (npm run cf:build) is production, whatever Vercel's variable says.
+    assert.equal(meta(build({ NEXT_PUBLIC_DEPLOY_ENV: 'production' }).html['index.html'], 'name', 'deploy-env'), 'production');
+    assert.equal(meta(build({ NEXT_PUBLIC_DEPLOY_ENV: 'production', VERCEL_ENV: 'preview' }).html['index.html'], 'name', 'deploy-env'), 'production');
+    assert.equal(meta(build({ NEXT_PUBLIC_DEPLOY_ENV: 'staging' }).html['index.html'], 'name', 'deploy-env'), 'local');
   });
 
   test('beacon.js touches no cookie and writes no markup', () => {
@@ -399,9 +403,18 @@ describe('L5: privacy, terms and provisioning', () => {
     for (const file of Object.keys(html)) assert.ok(html[file].includes(`<footer class="foot">`) && html[file].includes('href="/privacy"') && html[file].includes('href="/terms"'), file);
   });
 
-  test('.provision asks for the Vercel project and the Stripe Payment Link, and nothing else', () => {
-    const lines = fs.readFileSync(path.join(ROOT, '.provision'), 'utf8').trim().split('\n');
-    assert.deepEqual(lines, ['vercel project dawnlog', 'request "Stripe payment link for dawnlog: $12 once, per REVENUE.md"']);
+  test('the Cloudflare Worker serves the same dist/ as static assets, built by cf:build as production', () => {
+    // wrangler.jsonc → JSON: drop // comments (none of its strings hold "//") and trailing commas.
+    const text = fs.readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/,(\s*[}\]])/g, '$1');
+    const worker = JSON.parse(text);
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+    assert.equal(worker.name, 'overnight-receipts', 'provision cloudflare deploy: the Worker is named after the repo');
+    assert.equal(worker.main, undefined, 'static assets only');
+    assert.equal(worker.build, undefined, 'the broker runs no build command');
+    assert.equal(worker.assets.directory, 'dist');
+    assert.equal(worker.assets.html_handling, 'auto-trailing-slash', '/terms serves terms.html, like cleanUrls');
+    assert.equal(pkg.scripts['cf:build'], 'NEXT_PUBLIC_DEPLOY_ENV=production node site/build.js');
+    assert.equal(site.DEFAULT_SITE_URL, `https://${worker.name}.1426davejobs.workers.dev`);
   });
 
   test('the screenshot run stays out of npm test and never downloads a browser', () => {

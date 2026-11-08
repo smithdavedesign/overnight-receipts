@@ -24,6 +24,7 @@
     "test": "node --test \"test/*.test.js\"",
     "demo": "node scripts/demo.js",
     "site:build": "node site/build.js",
+    "cf:build": "NEXT_PUBLIC_DEPLOY_ENV=production node site/build.js",
     "site:preview": "node site/build.js && node site/serve.js",
     "screenshots": "node scripts/screenshots.mjs"
   },

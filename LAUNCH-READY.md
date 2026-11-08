@@ -18,7 +18,7 @@ The go-live pass of 2026-10-13. The product does what it did before. The CLI is 
 - **The site's address** for all of the above is resolved in this order:
   1. `SITE_URL`
   2. Vercel's own `VERCEL_PROJECT_PRODUCTION_URL` (set on every Vercel build, so a custom domain is picked up automatically)
-  3. `https://dawnlog.vercel.app`
+  3. `https://overnight-receipts.1426davejobs.workers.dev` (the Cloudflare Worker, production since 2026-11-08; it was `https://dawnlog.vercel.app`, which never served)
 
 **2. `/privacy` and `/terms`.** Both pages existed; now they're served at those clean paths (`cleanUrls` in `vercel.json`).
 - **Privacy:**
@@ -41,7 +41,7 @@ The go-live pass of 2026-10-13. The product does what it did before. The CLI is 
 - **`referrer`:** `document.referrer` only when its origin differs from the page's, else `null`.
 - **Nothing is sent** in any of these cases:
   - `navigator.webdriver` is true
-  - the build wasn't a production deploy (the build writes Vercel's `VERCEL_ENV` into `<meta name="vercel-env">`, and the beacon requires `production`)
+  - the build wasn't a production deploy (the build writes `NEXT_PUBLIC_DEPLOY_ENV` from `npm run cf:build`, else Vercel's `VERCEL_ENV`, into `<meta name="deploy-env">`, and the beacon requires `production`)
   - `localStorage` has `repohq:notrack`
   - storage can't be read
   - the thanks page (it doesn't load the beacon)

@@ -5,8 +5,9 @@
 //             which itself stays offline and sends nothing
 //   checkout  the Buy button clicked
 // `referrer` is document.referrer only when it's another site's page, else null, so this site's own URLs never leave.
-// Nothing is sent to an automated browser (navigator.webdriver), off the production deploy (the build writes
-// VERCEL_ENV into <meta name="vercel-env">), or when localStorage has "repohq:notrack" (the owner's browser).
+// Nothing is sent to an automated browser (navigator.webdriver), off the production deploy (the build writes its
+// deploy env into <meta name="deploy-env">: NEXT_PUBLIC_DEPLOY_ENV from `npm run cf:build` on the Cloudflare Worker,
+// else Vercel's VERCEL_ENV), or when localStorage has "repohq:notrack" (the owner's browser).
 // The privacy page describes exactly this; change both together.
 export const ENDPOINT = 'https://idea-factory.1426davejobs.workers.dev/api/ideas/signal';
 export const SLUG = 'dawnlog';
@@ -61,7 +62,7 @@ export function startBeacon(win) {
     local = win.localStorage;
     session = win.sessionStorage;
     if (win.navigator.webdriver) return null;
-    if (win.document.querySelector('meta[name="vercel-env"]')?.getAttribute('content') !== 'production') return null;
+    if (win.document.querySelector('meta[name="deploy-env"]')?.getAttribute('content') !== 'production') return null;
     if (local.getItem(NOTRACK_KEY) !== null) return null;
   } catch {
     return null;

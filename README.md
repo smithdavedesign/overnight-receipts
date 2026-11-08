@@ -1,5 +1,18 @@
 # overnight-receipts — morning triage receipts for overnight AI agent runs
 
+## Live
+
+**https://overnight-receipts.1426davejobs.workers.dev**
+
+The storefront runs on a Cloudflare Worker, static assets on the free plan, since 2026-11-08. It's the first time it's been public: the Vercel project never got a production URL, and Vercel's account is now blocked. These screenshots are of the live Worker, taken with Playwright in Chrome. The tool itself runs on your machine.
+
+| | Desktop (1440×900) | Phone (390×844) |
+|---|---|---|
+| The storefront: what overnight-receipts (dawnlog) does, with a sample run | <img src="docs/screenshots/live-home-desktop.png" alt="The storefront: what overnight-receipts (dawnlog) does, with a sample run, desktop" width="520"> | <img src="docs/screenshots/live-home-phone.png" alt="The storefront: what overnight-receipts (dawnlog) does, with a sample run, phone" width="200"> |
+| The core action on the site: the install line selected and copied | <img src="docs/screenshots/live-install-selected-desktop.png" alt="The core action on the site: the install line selected and copied, desktop" width="520"> | <img src="docs/screenshots/live-install-selected-phone.png" alt="The core action on the site: the install line selected and copied, phone" width="200"> |
+| Pro: $12 once (checkout opens soon: no payment link is stored) | <img src="docs/screenshots/live-pro-desktop.png" alt="Pro: $12 once (checkout opens soon: no payment link is stored), desktop" width="520"> | <img src="docs/screenshots/live-pro-phone.png" alt="Pro: $12 once (checkout opens soon: no payment link is stored), phone" width="200"> |
+| The privacy page: the tool uploads nothing; the site counts three anonymous events | <img src="docs/screenshots/live-privacy-desktop.png" alt="The privacy page: the tool uploads nothing; the site counts three anonymous events, desktop" width="520"> | <img src="docs/screenshots/live-privacy-phone.png" alt="The privacy page: the tool uploads nothing; the site counts three anonymous events, phone" width="200"> |
+
 ## Screenshots
 
 ![The storefront's landing page on a desktop: the pitch, the free install line, a sample receipt and the Pro box with the Buy button](docs/screenshots/home-desktop.png)
@@ -211,10 +224,28 @@ npm install && CHROMIUM_PATH=/path/to/chromium npm run screenshots   # regenerat
 | `src/redact.js` | secret redaction and escape stripping |
 | `schema/receipts.schema.json` | the `--json` schema |
 | `site/pages/` | the storefront: landing, terms, privacy, thanks, stylesheet, `license.js` (session id → license line), `beacon.js` (RepoHQ's visit / activate / checkout counter, described on the privacy page) |
-| `site/build.js` | `npm run site:build`: fills in the price and license variable from `src/pro.js` and the Buy button from `STRIPE_PAYMENT_LINK`, writes each public page's title, description, canonical URL, Open Graph, Twitter and JSON-LD tags, then writes `dist/` with `robots.txt`, `sitemap.xml`, `og.png` and `_headers` (the same headers, for Cloudflare Pages) |
+| `site/build.js` | `npm run site:build`: fills in the price and license variable from `src/pro.js` and the Buy button from `STRIPE_PAYMENT_LINK`, writes each public page's title, description, canonical URL, Open Graph, Twitter and JSON-LD tags, then writes `dist/` with `robots.txt`, `sitemap.xml`, `og.png` and `_headers` (the same headers, for the Cloudflare Worker). `npm run cf:build` is the same build counted as production |
 | `site/og-image.js` | the 1200×630 share image, drawn with code (a pixel font and a PNG encoder on `node:zlib`) |
 | `site/serve.js` | local preview of `dist/` with `vercel.json`'s headers and clean URLs (127.0.0.1 only) |
 | `vercel.json` | Vercel build settings, clean URLs (`/terms`, `/privacy`, `/thanks`) and security headers (CSP, no-referrer) |
-| `.provision` | what the pipeline asks the credential broker for: the Vercel project and the Stripe Payment Link |
+| `wrangler.jsonc` | the `overnight-receipts` Cloudflare Worker: serves `dist/` as static assets with clean URLs (production since 2026-11-08) |
 | `scripts/screenshots.mjs` | `npm run screenshots`: builds and serves the site, runs the demo, captures `docs/screenshots/` |
 | `test/` | fixture-driven tests: `cli` (M1), `m2`, `m3`, `storefront` and `launch` exit criteria; unit tests per module; `perf` |
+
+## Hosting on Cloudflare Workers
+
+Since 2026-11-08 the storefront is served by the `overnight-receipts` Worker on Cloudflare (free plan, commercial use
+allowed): static assets only, no Worker code. [`wrangler.jsonc`](wrangler.jsonc) serves `dist/` with
+`html_handling: auto-trailing-slash` (`/terms` → `terms.html`, like Vercel's `cleanUrls`), and `dist/_headers` gives it
+the same CSP as `vercel.json`. Vercel ignores `wrangler.jsonc`, so both hosts build from the same code.
+
+```bash
+npm run cf:build                                         # dist/, counted as production (NEXT_PUBLIC_DEPLOY_ENV=production)
+provision cloudflare deploy overnight-receipts "$PWD"    # deploy with the credential broker (token from the keychain)
+provision cloudflare url overnight-receipts              # https://overnight-receipts.1426davejobs.workers.dev
+```
+
+The build writes its deploy env into `<meta name="deploy-env">`: `NEXT_PUBLIC_DEPLOY_ENV` from `cf:build`, else Vercel's
+`VERCEL_ENV`, and the visit beacon only sends on `production`. Canonical and share URLs default to the Worker's address;
+set `SITE_URL` to pin a custom domain. No `STRIPE_PAYMENT_LINK` is stored for this product, so the page says "Checkout
+opens soon."

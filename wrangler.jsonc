@@ -1,0 +1,15 @@
+// overnight-receipts' storefront on Cloudflare Workers (free plan): static assets only, no Worker code. `npm run
+// cf:build` writes dist/ (the same pages as `npm run site:build`) counted as production, with dist/_headers carrying
+// vercel.json's CSP. Vercel ignores this file. Deploy with the credential broker, which injects the token:
+//   provision cloudflare deploy overnight-receipts <this checkout>
+{
+  "name": "overnight-receipts",
+  "compatibility_date": "2026-10-15",
+  "assets": {
+    "directory": "dist",
+    // /terms → terms.html, like Vercel's cleanUrls.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "workers_dev": true
+}

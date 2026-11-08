@@ -1,5 +1,6 @@
 // `npm run site:build`: the storefront (REVENUE.md) as static files in dist/, which Vercel serves (vercel.json),
-// plus a `_headers` file with the same security headers for Cloudflare Pages.
+// plus a `_headers` file with the same security headers for Cloudflare. `npm run cf:build` is the same build for the
+// overnight-receipts Worker (wrangler.jsonc serves dist/ as static assets and reads _headers), counted as production.
 // The pages in site/pages/ are plain HTML with {{PLACEHOLDERS}}; the price and the license variable come from
 // src/pro.js, so the site and the CLI can't disagree, and the Buy button comes from STRIPE_PAYMENT_LINK.
 // The build also writes what search engines and link previews read: each public page's head (title, description,
@@ -21,13 +22,16 @@ export const ISSUES_URL = `${REPO_URL}/issues`;
 export const INSTALL = 'npx github:smithdavedesign/overnight-receipts --since 12h';
 export const NAME = 'overnight-receipts';
 export const TAGLINE = 'What did your agent do overnight?';
-/** Where the site lives when neither SITE_URL nor Vercel's VERCEL_PROJECT_PRODUCTION_URL says otherwise. */
-export const DEFAULT_SITE_URL = 'https://dawnlog.vercel.app';
+/**
+ * Where the site lives when neither SITE_URL nor Vercel's VERCEL_PROJECT_PRODUCTION_URL says otherwise: the Cloudflare
+ * Worker, production since 2026-11-08 (it was https://dawnlog.vercel.app, which never served; Vercel's account is blocked).
+ */
+export const DEFAULT_SITE_URL = 'https://overnight-receipts.1426davejobs.workers.dev';
 export const OG_IMAGE = 'og.png';
 
 /**
  * The pages search engines may index, by template file: the clean URL each is served at (vercel.json's
- * cleanUrls; Cloudflare Pages does the same) and its own title and description. thanks.html isn't here: it's
+ * cleanUrls; the Worker's auto-trailing-slash does the same) and its own title and description. thanks.html isn't here: it's
  * noindex, has no canonical URL, and sends no beacon.
  */
 export const PUBLIC_PAGES = {
@@ -83,8 +87,12 @@ export function siteUrl(env = {}) {
   return url.origin;
 }
 
-/** Vercel's VERCEL_ENV as the pages see it (the beacon sends only on "production"); anything else is "local". */
+/**
+ * The deploy env as the pages see it (the beacon sends only on "production"): NEXT_PUBLIC_DEPLOY_ENV, which
+ * `npm run cf:build` sets for the Cloudflare Worker, else Vercel's VERCEL_ENV; anything else is "local".
+ */
 export function deployEnv(env = {}) {
+  if (DEPLOY_ENVS.has(env.NEXT_PUBLIC_DEPLOY_ENV)) return env.NEXT_PUBLIC_DEPLOY_ENV;
   return DEPLOY_ENVS.has(env.VERCEL_ENV) ? env.VERCEL_ENV : 'local';
 }
 
@@ -155,7 +163,7 @@ export function pageHead(file, site, deploy) {
     meta('name', 'twitter:image', image),
     meta('name', 'twitter:image:alt', imageAlt),
     `<script type="application/ld+json">${JSON.stringify(jsonLd(site)).replace(/</g, '\\u003c')}</script>`,
-    meta('name', 'vercel-env', deploy),
+    meta('name', 'deploy-env', deploy),
     '<script type="module" src="beacon.js"></script>',
   ].join('\n');
 }
@@ -189,9 +197,9 @@ export function readHeaderRules(file = new URL('../vercel.json', import.meta.url
 }
 
 /**
- * The same rules as a `_headers` file, which Cloudflare Pages (and Netlify) read. Vercel's free Hobby plan is
- * non-commercial only, so once checkout is on, the same dist/ deploys to Cloudflare Pages' free plan with the
- * same CSP. Only the two source shapes vercel.json uses are translated; anything else throws rather than drop a header.
+ * The same rules as a `_headers` file, which Cloudflare's static assets (and Netlify) read: the overnight-receipts
+ * Worker serves dist/ with the same CSP as vercel.json (Vercel's free Hobby plan is non-commercial only, and the
+ * account is blocked). Only the two source shapes vercel.json uses are translated; anything else throws rather than drop a header.
  */
 export function headersFile(rules) {
   const blocks = [];

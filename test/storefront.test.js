@@ -62,7 +62,7 @@ const fileFor = (ref) => {
 /** Runs `node site/build.js DIR` with the build's env variables removed from the environment unless given. */
 function buildCli(out, env = {}) {
   const childEnv = { ...process.env };
-  for (const key of ['STRIPE_PAYMENT_LINK', 'SITE_URL', 'VERCEL_ENV', 'VERCEL_PROJECT_PRODUCTION_URL']) delete childEnv[key];
+  for (const key of ['STRIPE_PAYMENT_LINK', 'SITE_URL', 'VERCEL_ENV', 'VERCEL_PROJECT_PRODUCTION_URL', 'NEXT_PUBLIC_DEPLOY_ENV']) delete childEnv[key];
   delete childEnv.NODE_TEST_CONTEXT;
   const r = spawnSync(process.execPath, [BUILD, out], { env: { ...childEnv, ...env }, encoding: 'utf8' });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
@@ -249,7 +249,7 @@ describe('exit S4: terms and privacy', () => {
     assert.match(words, /no cookies/i);
     assert.match(words, /no third-party analytics/i);
     assert.match(words, /Stripe/);
-    assert.match(words, /Vercel/);
+    assert.match(words, /Cloudflare/);
     assert.match(words, /never sold/i);
   });
 
@@ -344,7 +344,7 @@ describe('exit S5: the thanks page hands over the license string', () => {
 });
 
 describe('exit S6: the site keeps its own privacy promise', () => {
-  const ALLOWED_LINK_HOSTS = new Set(['github.com', 'buy.stripe.com', 'stripe.com', 'vercel.com']);
+  const ALLOWED_LINK_HOSTS = new Set(['github.com', 'buy.stripe.com', 'stripe.com', 'www.cloudflare.com']);
 
   test('nothing loads from another origin; other-origin links go only to the allowed hosts', () => {
     const { html, out } = build({ STRIPE_PAYMENT_LINK: CHECKOUT });
@@ -403,7 +403,7 @@ describe('exit S6: the site keeps its own privacy promise', () => {
     for (const rule of config.headers) assert.match(rule.source, /^(\/\(\.\*\)|\/[\w.-]+)$/, `serve.js can't match ${rule.source}`);
   });
 
-  test('dist/_headers carries the same headers for Cloudflare Pages (free, commercial use allowed; Vercel Hobby is not)', () => {
+  test('dist/_headers carries the same headers for the Cloudflare Worker (free, commercial use allowed; Vercel Hobby is not)', () => {
     const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
     const { out, result } = build();
     assert.ok(result.files.includes('_headers'));
@@ -415,7 +415,7 @@ describe('exit S6: the site keeps its own privacy promise', () => {
     );
     const lines = (rule) => rule.headers.map(({ key, value }) => `  ${key}: ${value}`);
     assert.deepEqual(blocks['/*'], lines(config.headers.find((h) => h.source === '/(.*)')), 'every page: the same CSP and policies');
-    assert.deepEqual(blocks['/thanks'], lines(config.headers.find((h) => h.source === '/thanks')), 'Cloudflare Pages serves thanks.html at /thanks, like cleanUrls');
+    assert.deepEqual(blocks['/thanks'], lines(config.headers.find((h) => h.source === '/thanks')), 'the Worker serves thanks.html at /thanks, like cleanUrls');
     const legacy = site.headersFile([{ source: '/thanks.html', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] }]);
     assert.match(legacy, /^\/thanks\.html\n {2}X-Robots-Tag: noindex\n\n\/thanks\n {2}X-Robots-Tag: noindex\n$/, 'an .html source covers its clean path too');
     assert.throws(() => site.headersFile([{ source: '/(.*)\\.js', headers: [] }]), /source/);
